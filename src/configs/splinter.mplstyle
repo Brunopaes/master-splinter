@@ -1,0 +1,64 @@
+# The one dark theme every figure in this project is rendered against -
+# the dive reports the analyser writes and the teaching figures in the
+# README alike. It replaced bbg.mplstyle, which styled only the former.
+#
+# This file dresses the canvas: surface, grid, ink, and the fallback cycler.
+# Colours that carry *meaning* are named in configs/palette.py, and callers
+# should take them from there rather than leaning on the cycle order.
+#
+# The slot order below is fixed and must not be reordered - the ordering is
+# what keeps adjacent series apart under colour vision deficiency, and it
+# was checked with a validator rather than by eye.
+
+figure.facecolor: 0D0D0D
+figure.dpi: 72
+figure.figsize: 11, 6.798373876248402  # ratio 1.61803398875 : 1
+
+savefig.dpi: 150
+savefig.facecolor: 0D0D0D
+
+# The plotting area sits a shade above the page, so the figure reads as a
+# panel rather than a hole.
+axes.facecolor: 1A1A19
+axes.edgecolor: 383835
+axes.grid: True
+axes.linewidth: 1
+axes.labelcolor: C3C2B7
+axes.labelsize: 12
+axes.titlesize: 13
+axes.titlecolor: FFFFFF
+axes.xmargin: 0
+axes.ymargin: 0
+axes.autolimit_mode: round_numbers
+axes.prop_cycle: cycler('color', ['3987E5', 'D95926', '199E70', 'C98500', 'D55181', '008300', '9085E9', 'E66767'])
+axes.spines.right: False
+axes.spines.top: False
+
+xtick.major.size: 4
+xtick.minor.size: 0
+ytick.major.size: 4
+ytick.minor.size: 0
+xtick.color: 898781
+ytick.color: 898781
+xtick.labelsize: 11
+ytick.labelsize: 11
+
+# A solid hairline one shade off the surface. Never dashed: dashing reads as
+# "threshold" when it is only a grid.
+grid.color: 2C2C2A
+grid.linestyle: -
+grid.linewidth: 0.8
+grid.alpha: 1.0
+
+font.size: 12
+text.color: FFFFFF
+
+lines.linewidth: 2
+lines.solid_capstyle: round
+lines.dash_capstyle: round
+lines.markersize: 6
+
+legend.fontsize: medium
+legend.handlelength: 1.6
+legend.frameon: False
+legend.framealpha: 1

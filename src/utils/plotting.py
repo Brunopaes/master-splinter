@@ -16,33 +16,49 @@ matplotlib.use("Agg")
 
 import matplotlib.pyplot as plt
 
+from configs.palette import (
+    COMPARTMENT,
+    DECO_STOP_COLOUR,
+    MUTED,
+    PROFILE_INK,
+    SURFACE,
+)
+
 DEFAULT_STYLE_PATH = (
-    Path(__file__).resolve().parents[1] / "configs" / "bbg.mplstyle"
+    Path(__file__).resolve().parents[1] / "configs" / "splinter.mplstyle"
 )
 
 # Fast, medium and slow compartments, 0-based.
 DEFAULT_COMPARTMENTS = (0, 7, 15)
 
-COMPARTMENT_STYLE = {
-    0: ("red", "Fast Tissue N2"),
-    7: ("orange", "Medium Tissue N2"),
-    15: ("blue", "Slow Tissue N2"),
+COMPARTMENT_LABEL = {
+    0: "Fast Tissue N2",
+    7: "Medium Tissue N2",
+    15: "Slow Tissue N2",
 }
 
 
 def _plot_profile(axis, report):
-    """Draws the executed dive and, dotted behind it, the plan."""
+    """Draws the executed dive and, dotted behind it, the plan.
+
+    Depth wears ink rather than a series colour. It is the frame the tissue
+    curves are read against - a different quantity on a different axis,
+    never compared against them - and the categorical palette has only
+    three slots that separate cleanly, which the compartments need.
+
+    """
     times = [sample.time for sample in report.samples]
     axis.plot(
         times,
         [sample.actual_depth for sample in report.samples],
+        color=PROFILE_INK,
         label="Dive Profile (executed)",
     )
     axis.plot(
         times,
         [sample.planned_depth for sample in report.samples],
         ":",
-        color="grey",
+        color=MUTED,
         linewidth=1,
         label="Dive Profile (planned)",
     )
@@ -56,12 +72,17 @@ def _plot_stops(axis, report):
     """Marks the start of each decompression stop."""
     if not report.stops:
         return
+    # An event on the profile, not a series: the surface-coloured ring is
+    # what separates it from the depth line it sits on, so it does not have
+    # to compete with the compartments for a palette slot.
     axis.scatter(
         [stop.started_at for stop in report.stops],
         [stop.depth for stop in report.stops],
-        color="green",
+        color=DECO_STOP_COLOUR,
+        edgecolors=SURFACE,
+        linewidths=1.5,
         marker="o",
-        s=25,
+        s=60,
         zorder=5,
         label="Deco Stop",
     )
@@ -72,15 +93,12 @@ def _plot_tissues(axis, report, compartments):
     axis.set_ylabel("Tissue N2 Pressure (Bar)")
     times = [sample.time for sample in report.samples]
     for index in compartments:
-        colour, label = COMPARTMENT_STYLE.get(
-            index, ("grey", f"Compartment {index + 1} N2")
-        )
         axis.plot(
             times,
             [sample.tissues[index] for sample in report.samples],
             "--",
-            color=colour,
-            label=label,
+            color=COMPARTMENT.get(index, MUTED),
+            label=COMPARTMENT_LABEL.get(index, f"Compartment {index + 1} N2"),
         )
 
 
@@ -141,10 +159,17 @@ def render_dive_report(
 
     depth_lines, depth_labels = depth_axis.get_legend_handles_labels()
     tissue_lines, tissue_labels = tissue_axis.get_legend_handles_labels()
-    depth_axis.legend(
+    # Drawn on the tissue axis, not the depth one. twinx stacks the overlay
+    # above its host, so a legend placed on depth_axis renders underneath
+    # the tissue curves and its backing panel hides nothing.
+    tissue_axis.legend(
         depth_lines + tissue_lines,
         depth_labels + tissue_labels,
         loc="lower right",
+        frameon=True,
+        facecolor=SURFACE,
+        edgecolor="none",
+        framealpha=0.9,
     )
 
     figure.suptitle(title)

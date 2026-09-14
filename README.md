@@ -34,7 +34,7 @@ The `ZHL-16` tissue table lists 16 mathematical compartments that represent diff
 >
 > Both sets live in `src/configs/zhl16.py`, so changing variant really is the single edit that file claims. `16A` is materially more permissive — on a `30 m / 60 min` dive it asks for about a fifth less decompression.
 
-![image](https://bbgithub.dev.bloomberg.com/bpaes/master-splinter/assets/15072/26b9c6f2-d457-46ab-833b-5be8edf1e3ae)
+![Nitrogen loading curves for all 16 ZHL-16C compartments held at 15 m. Compartments 1, 8 and 16 are highlighted; the other 13 recede into a grey ensemble. The fastest saturates within 40 minutes, the slowest has barely moved in 120](reports/methodology/tissue-uptake.png)
 
 > These compartments are not actual organs, but _conceptual_ models that simulate how inert gases (e.g. nitrogen or helium) are absorbed and released in different parts of the body at different rates.
 
@@ -65,7 +65,7 @@ The `ZHL-16` tissue table lists 16 mathematical compartments that represent diff
 
 #### `A` and `B` Values
 
-![image](https://bbgithub.dev.bloomberg.com/bpaes/master-splinter/assets/15072/5e73c56a-3a84-4a3c-8497-d7a6cb1fbb63)
+![M-value against depth for a fast, medium and slow compartment; the fast one starts highest at the surface and climbs most steeply](reports/methodology/m-value-limits.png)
 
 They are used to calculate the `M-value`, the maximum safe inert gas pressure in a tissue:
 
@@ -99,9 +99,11 @@ This section summarizes the core equations behind the `Bühlmann ZHL-16` decompr
 
 Each tissue compartment follows a first‑order exponential model for gas loading and off‑gassing:
 
-<details><summary>mathematical expression</summary></br>
+$$
+\Large P_{\text{tissue}}(t) = P_{\text{tissue}}(0) + \left( P_{\text{inspired}} - P_{\text{tissue}}(0) \right) \left( 1 - e^{-kt} \right)
+$$
 
-![image](https://bbgithub.dev.bloomberg.com/bpaes/master-splinter/assets/15072/52c1701a-803b-4fa7-a30e-58d73ab05a79)
+<details><summary>symbol definitions</summary></br>
 
 Where:
 
@@ -123,9 +125,11 @@ This same equation is used for both:
 
 The inspired inert gas pressure is calculated from ambient pressure and gas fraction:
 
-<details><summary>mathematical expression</summary></br>
+$$
+\Large P_{\text{inspired}} = f_{\text{gas}} \cdot \left( P_{\text{ambient}} - P_{H_2O} \right)
+$$
 
-![image](https://bbgithub.dev.bloomberg.com/bpaes/master-splinter/assets/15072/5edcf78a-a1c6-4d9f-a16b-de00722791d4)
+<details><summary>symbol definitions</summary></br>
 
 Where:
 
@@ -139,9 +143,11 @@ Where:
 
 `Bühlmann` defined a maximum allowable inert gas pressure (`M‑value`) for each tissue compartment:
 
-<details><summary>mathematical expression</summary></br>
+$$
+\Large M = \frac{P_{\text{ambient}}}{B} + A
+$$
 
-![image](https://bbgithub.dev.bloomberg.com/bpaes/master-splinter/assets/15072/7dbae7b7-d3c2-4b5c-a831-0b21e5aa3e8b)
+<details><summary>symbol definitions</summary></br>
 
 Where:
 
@@ -158,9 +164,11 @@ Where:
 
 To calculate the shallowest depth a diver can safely ascend to, the `M‑value` equation is rearranged:
 
-<details><summary>mathematical expression</summary></br>
+$$
+\Large P_{\text{ambient}}^{\min} = \left( P_{\text{tissue}} - A \right) \cdot B
+$$
 
-![image](https://bbgithub.dev.bloomberg.com/bpaes/master-splinter/assets/15072/9e01c804-55ad-4849-a9b0-95d5168156cb)
+<details><summary>symbol definitions</summary></br>
 
 Where:
 
@@ -175,9 +183,17 @@ This value defines the **decompression ceiling**.
 
 `Gradient Factors` add _conservatism_ by scaling down the `M‑value`:
 
-<details><summary>mathematical expression</summary></br>
+$$
+\Large P_{\text{allowed}} = P_{\text{ambient}} + GF \cdot \left( M - P_{\text{ambient}} \right)
+$$
 
-![image](https://bbgithub.dev.bloomberg.com/bpaes/master-splinter/assets/15072/2b325994-f64a-4954-8a00-62921db46815)
+Since `GF` lies between `0` and `1`, the allowed pressure always falls **between** ambient pressure and the raw `M-value` — a gradient factor can only ever scale the allowance _down_. Its value is interpolated across the ascent, from `GF_low` at the first stop to `GF_high` at the surface:
+
+$$
+\Large GF = GF_{\text{high}} - \left( GF_{\text{high}} - GF_{\text{low}} \right) \cdot \frac{P_{\text{ambient}} - P_{\text{surface}}}{P_{\text{first stop}} - P_{\text{surface}}}
+$$
+
+<details><summary>symbol definitions and gradient factor pairs</summary></br>
 
 `GF_low` and `GF_high` are two values that define how _conservative_ a decompression algorithm should be when calculating ascent ceilings and required stops.
 
@@ -190,9 +206,9 @@ Where:
 > Example: `GF_low` = 30 → only allows `30%` of the way to the full `Bühlmann` limit at the first deco stop.</br>
 > Example: `GF_high` = 85 → allows `85%` of the full `Bühlmann` `M-value` as the final tissue ceiling at surfacing.
 
-![image](https://bbgithub.dev.bloomberg.com/bpaes/master-splinter/assets/15072/08251c17-708c-4e95-8cf2-ca5bcf6e7b67)
+![M-value against depth with GF 30/85 and GF 50/95 lines beneath it, both clamped to GF_low below a 30 m first stop anchor and interpolating up to GF_high at the surface](reports/methodology/gradient-factors.png)
 
-> This graph compares conservative (GF `30/85`) and less conservative (GF `50/95`) gradient factors, showing how each setting adjusts the safe tissue pressure ceiling below the `Bühlmann` `M-value` line across different depths.
+> This graph compares conservative (GF `30/85`) and less conservative (GF `50/95`) gradient factors, showing how each setting adjusts the safe tissue pressure ceiling below the `Bühlmann` `M-value` line across different depths. Both lines sit below the `M-value` at every depth and above ambient pressure, which is the `GF 0` floor drawn dotted. The kink at `30 m` is the first stop anchor: deeper than it the factor is clamped to `GF_low`, shallower it interpolates towards `GF_high`.
 
 GF `100/100` allows surfacing as soon as no compartments exceed their raw `M-value` — it's efficient but higher risk if you're close to the limit.
 
@@ -214,7 +230,9 @@ Every pressure above is absolute, in bar, and every one of them is measured agai
 
 That is worth stating because most diving literature rounds it to `1 bar`, and this project deliberately does not. The reason is the elevation conversion:
 
-![lagrida_latex_editor (1)](https://bbgithub.dev.bloomberg.com/bpaes/master-splinter/assets/15072/63caa1ff-e867-446e-b88b-b2eccd340c4f)
+$$
+\Large P(h) = P_0 \cdot \left( 1 - 2.25577 \times 10^{-5} \cdot h \right)^{5.25588}
+$$
 
 Those two constants are calibrated as a set with `P0 = 101325 Pa`. Keeping them while rounding `P0` to `1.0` gives a curve of the right _shape_ through the wrong _point_ — self-consistent, and wrong by about `110 m` at every elevation:
 
@@ -266,11 +284,13 @@ Here's how these formulas come together in a practical example of a typical dive
 
 The dive simulation models a straightforward profile: a descent to `15 meters` for `30 minutes`, followed by a direct ascent to `5 meters` with a `3-minute` safety stop, and then _surfacing_. The `fast` compartment is the one that visibly does the work — it loads to `1.92 bar` over the bottom phase and is already off-gassing by the safety stop, ending at `1.53 bar`. The `medium` and `slow` compartments are still filling when the diver surfaces; on a dive this short they barely turn over at all, peaking at `1.04` and `0.79 bar` respectively.
 
-![image](https://bbgithub.dev.bloomberg.com/bpaes/master-splinter/assets/15072/a7867a02-525d-4d0d-b182-10e1ea210342)
+![Two panels: the executed depth profile, and compartment 6's tissue pressure tracking far below its M-value and both GF ceilings throughout](reports/methodology/worked-example-profile.png)
 
 Using `Bühlmann’s` `ZHL-16` algorithm, the tissue pressure remains safely below the calculated `M-value` limit. Two sets of gradient factors (GF `30/85` and GF `50/95`) were applied to assess additional safety margins. The tissue pressure did not exceed either of these GF-adjusted ceilings at any point, indicating the diver stayed within conservative ascent limits.
 
-![image](https://bbgithub.dev.bloomberg.com/bpaes/master-splinter/assets/15072/dd147c2e-135d-45b4-a709-54f0338b0629)
+![Fast, medium and slow compartment pressures over the dive, each drawn against its own GF 30/85 ceiling and staying well clear of it](reports/methodology/worked-example-tissues.png)
+
+> Each compartment is paired with **its own** `GF 30/85` ceiling, in the same colour. Drawing one compartment's ceiling across all three would compare a pressure against a limit that was never its own.
 
 The absence of any threshold crossings suggests that no decompression stop was required, and the `3-minute` hold at `5 meters` was sufficient to manage `supersaturation` before surfacing. Overall, this profile represents a clean, `no-decompression` dive that adheres well to both standard and conservative ascent protocols.
 
@@ -882,7 +902,7 @@ print(report.stops, report.total_deco_time, report.findings)
 
 ## Regenerating the Report Graphs
 
-Everything in `reports/diving_simulations/` is generated, and every one of the commands below is deterministic — the synthetic profile's depth jitter is seeded (`--seed`, default `0`), so a regenerated graph is byte-identical unless the model itself changed.
+Everything under `reports/` is generated, and every one of the commands below is deterministic — the synthetic profile's depth jitter is seeded (`--seed`, default `0`), so a regenerated graph is byte-identical unless the model itself changed.
 
 Three come straight from the analyser. `--fresh --no-save` keeps them independent of whatever tissue state happens to be lying around:
 
@@ -925,3 +945,38 @@ close_figure(figure)
 ```
 
 > **Generate it, do not hand-log it.** Writing this profile as a sparse `CSV` and passing `--profile` produces a *wrong looking* graph: the `30` minute bottom phase becomes a single sample, and the renderer draws a straight line from the descent to the ascent, showing a slow sink to `15 m` that never happened. That is the sampling caveat under [`--profile`](#argument-reference) made visible. `generate_dive_profile` samples every `10` seconds and the artefact disappears.
+
+### Methodology Figures
+
+The five figures embedded in [Methodology](#methodology) are explanatory rather than analytical — they illustrate the equations themselves, not one dive's report — so they live in `reports/methodology/` and regenerate together:
+
+```bash
+export PYTHONPATH=src
+python tools/methodology_figures.py
+```
+
+They share one dark theme with everything else this project draws.
+
+> Every value in them is computed by `model/splinter_decompression.py` and `configs/zhl16.py` at render time — nothing is transcribed. That is deliberate. The images these replaced had drifted: they showed a `4` minute compartment `1` from `ZHL-16A`, an `M-value` of `A + B · P_ambient`, and gradient factor lines _above_ the `M-value` rather than below it. A figure that recomputes cannot drift.
+
+### The Look
+
+One dark theme for everything, in two files. `src/configs/splinter.mplstyle` dresses the canvas — surface, grid, ink, the fallback cycler — and `src/configs/palette.py` names the colours that carry meaning, so a compartment is the same blue in a dive report as in a teaching figure. It replaced `bbg.mplstyle`, which styled only the reports.
+
+<details><summary>how colour is assigned</summary></br>
+
+Two families, and they never mean the same thing:
+
+| Family | Encodes | Colours |
+| ------ | ------- | ------- |
+| Compartment | which tissue — stable across every figure | blue (fast), orange (medium), aqua (slow) |
+| Limit | which ceiling, ordered by how much supersaturation it permits | green (`GF 30/85`), yellow (`GF 50/95`), magenta (raw `M-value`) |
+
+Everything else is ink, not colour. The dive profile itself is white: depth is the frame the tissue curves are read against, on its own axis and never compared against them. Ambient pressure, the planned profile and the inspired asymptote are muted grey — annotation rather than data. The same grey carries the 13 unhighlighted compartments in the uptake figure, because sixteen hues is past the point where categorical colour still separates, so three are named and the rest become an ensemble.
+
+Both trios were checked with a palette validator against the `#1A1A19` surface on the all-pairs list, not chosen by eye, and two of its results shaped the figures:
+
+- **There is no fourth compartment colour.** Nothing validates alongside blue, orange and aqua — violet against blue measures `ΔE 9.8` against a floor of `15`. A figure needing a fourth distinguishable line needs a facet, not another hue.
+- **Green against yellow carries a warning** (colour-vision-deficiency `ΔE 6.9`, protan). It is acceptable only because those two never share a line style: `GF 30/85` is dashed, `GF 50/95` dash-dot.
+
+</details>
