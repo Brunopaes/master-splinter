@@ -1,0 +1,47 @@
+figure.facecolor: 0
+figure.dpi: 72
+figure.figsize: 11, 6.798373876248402  # ratio 1.61803398875 : 1
+
+savefig.dpi: 150
+savefig.facecolor: 0
+
+axes.facecolor: 0
+axes.edgecolor: AAAAAA
+axes.grid: True
+axes.linewidth: 1
+axes.labelcolor: darkorange
+axes.labelsize: 12
+axes.titlesize: 13
+axes.xmargin: 0
+axes.ymargin: 0
+axes.autolimit_mode: round_numbers
+axes.prop_cycle: cycler('color', ['deepskyblue', 'orangered', 'limegreen', 'yellow', 'aqua', 'mintcream','magenta', 'darkorange'])
+axes.spines.right: False
+axes.spines.top: False
+
+xtick.major.size: 4
+xtick.minor.size: 0
+ytick.major.size: 4
+ytick.minor.size: 0
+xtick.color: DDDDDD
+
+xtick.labelsize: 12
+ytick.color: DDDDDD
+ytick.labelsize: 12
+
+grid.color: white
+grid.linestyle: -
+grid.alpha: 0.25
+
+font.size: 12
+
+text.color: DDDDDD
+
+lines.linewidth: 1.5
+lines.markersize: 6
+
+legend.loc           : upper center
+legend.fontsize      : medium
+legend.handlelength  : 1.     # the length of the legend lines in fraction of fontsize
+legend.frameon       : False   # whether or not to draw a frame around legend
+legend.framealpha    : 1    # opacity of legend frame
