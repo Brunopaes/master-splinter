@@ -1,0 +1,91 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+  workflow_dispatch:
+
+concurrency:
+  # A new push to a branch makes the run already in flight for it pointless.
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+
+jobs:
+  test:
+    name: test / py${{ matrix.python }}
+    runs-on: ubuntu-latest
+    strategy:
+      # One version failing is the interesting signal; keep the others running
+      # so a 3.11-only break is distinguishable from a break everywhere.
+      fail-fast: false
+      matrix:
+        # toxenv is spelled out rather than derived: the tox factor is py311,
+        # not py3.11, and a shell substitution here would be one more thing
+        # that can silently resolve to an env that does not exist.
+        include:
+          - python: "3.11"
+            toxenv: test-py311
+          - python: "3.12"
+            toxenv: test-py312
+          - python: "3.13"
+            toxenv: test-py313
+          - python: "3.14"
+            toxenv: test-py314
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: ${{ matrix.python }}
+
+      - name: Install tox
+        run: python -m pip install --upgrade pip tox
+
+      # requires-python is >=3.11 and the classifiers claim all four. This job
+      # is what makes that a fact rather than an assertion: 3.11 and 3.12 have
+      # no interpreter on the usual dev machine, so this is the only place they
+      # are ever exercised.
+      - name: Run tests
+        run: tox -e ${{ matrix.toxenv }}
+
+  checks:
+    name: lint, types, build
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          # The floor, deliberately: ruff target-version and mypy python_version
+          # both sit at 3.11, and linting on a newer interpreter is how 3.12+
+          # syntax reaches a package that promises 3.11.
+          python-version: "3.11"
+
+      - name: Install tox
+        run: python -m pip install --upgrade pip tox
+
+      - name: Lint and format
+        run: tox -e format-check
+
+      - name: Type check
+        run: tox -e type
+
+      - name: Build and verify artifacts
+        run: tox -e build
+
+      # Proof the wheel is self-contained: no cli/, no tools/, no theme data
+      # left behind. Catches a packaging regression before it reaches an index.
+      - name: Inspect the wheel
+        run: |
+          python -m pip install --upgrade check-wheel-contents
+          check-wheel-contents dist/*.whl
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: distributions
+          path: dist/
+          retention-days: 7
