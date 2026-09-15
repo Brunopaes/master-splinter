@@ -1,0 +1,75 @@
+name: Release
+
+# Publishing is deliberately not part of CI. CI runs on every push and every
+# pull request; this runs once, when a release is published, so a green build
+# on a branch can never reach an index.
+on:
+  release:
+    types: [published]
+
+permissions:
+  contents: read
+
+jobs:
+  build:
+    name: build distributions
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          # The floor, matching the checks job in ci.yml: what is published
+          # should be built on the oldest interpreter the package promises.
+          python-version: "3.11"
+
+      - name: Install tox
+        run: python -m pip install --upgrade pip tox
+
+      # The same env CI already runs, twine check --strict included, so the
+      # artifacts that go to PyPI are built the way they were verified rather
+      # than by a second recipe that can drift from it.
+      - name: Build and verify artifacts
+        run: tox -e build
+
+      # The tag is typed by hand; __version__ is what actually lands on the
+      # index. A mismatch is a release that installs under a version nobody
+      # named, and PyPI does not allow a filename to be reused after the fact.
+      - name: Check the tag matches the packaged version
+        run: |
+          version=$(python -c \
+            "import sys; sys.path.insert(0, 'src'); \
+             import master_splinter; print(master_splinter.__version__)")
+          tag=${GITHUB_REF_NAME#v}
+          if [ "$version" != "$tag" ]; then
+            echo "tag ${GITHUB_REF_NAME} does not match __version__ ${version}" >&2
+            exit 1
+          fi
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: distributions
+          path: dist/
+
+  publish:
+    name: publish to PyPI
+    needs: build
+    runs-on: ubuntu-latest
+    # A protected environment is the last manual gate: an accidental release
+    # publish still has to be approved by someone before anything is uploaded.
+    environment:
+      name: pypi
+      url: https://pypi.org/p/master-splinter
+    permissions:
+      # Trusted publishing: PyPI mints a short-lived token from this OIDC
+      # claim, so there is no long-lived API token in repository secrets to
+      # leak or rotate. Scoped to this job alone - build does not get it.
+      id-token: write
+    steps:
+      - uses: actions/download-artifact@v4
+        with:
+          name: distributions
+          path: dist/
+
+      - name: pypi-publish
+        uses: pypa/gh-action-pypi-publish@v1.14.2
