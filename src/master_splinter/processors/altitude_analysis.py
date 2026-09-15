@@ -14,14 +14,17 @@ they tolerate it.
 
 from dataclasses import dataclass
 
-from configs.environment import SURFACE_PRESSURE
-from configs.zhl16 import ZHL16_N2_HALF_TIMES
-from model.atmosphere import elevation_at_pressure, pressure_at_elevation
-from model.splinter_decompression import (
+from master_splinter.configs.environment import SURFACE_PRESSURE
+from master_splinter.configs.zhl16 import ZHL16_N2_HALF_TIMES
+from master_splinter.model.atmosphere import (
+    elevation_at_pressure,
+    pressure_at_elevation,
+)
+from master_splinter.model.splinter_decompression import (
     limiting_compartment,
     tolerated_ambient_pressure,
 )
-from utils.state_store import age_tissues
+from master_splinter.utils.state_store import age_tissues
 
 # Longest surface interval the wait search will consider. A fully rested diver
 # at sea level still cannot tolerate an unlimited elevation gain - at

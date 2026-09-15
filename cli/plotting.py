@@ -5,8 +5,6 @@ figure can never disagree with the analysis it depicts.
 
 """
 
-from pathlib import Path
-
 import matplotlib
 
 # Selected before pyplot is imported, not after. Every consumer of this module
@@ -16,7 +14,8 @@ matplotlib.use("Agg")
 
 import matplotlib.pyplot as plt
 
-from configs.palette import (
+from master_splinter import theme
+from master_splinter.theme import (
     COMPARTMENT,
     DECO_STOP_COLOUR,
     MUTED,
@@ -24,9 +23,7 @@ from configs.palette import (
     SURFACE,
 )
 
-DEFAULT_STYLE_PATH = (
-    Path(__file__).resolve().parents[1] / "configs" / "splinter.mplstyle"
-)
+DEFAULT_STYLE_PATH = theme.style_path()
 
 # Fast, medium and slow compartments, 0-based.
 DEFAULT_COMPARTMENTS = (0, 7, 15)

@@ -6,39 +6,53 @@ figures this replaced had done exactly that: they showed a 4 minute
 compartment 1 (ZHL-16A), an M-value of A + B * P_ambient, and gradient
 factor lines drawn above the M-value rather than below it.
 
-Dark theme only, from configs/splinter.mplstyle, with colour roles taken
-from configs/palette.py rather than left to the cycler - so a compartment
-keeps its hue from one figure to the next, and from here to a dive report.
+Dark theme only, from master_splinter.theme - the style sheet dresses the
+canvas and the colour roles name what carries meaning, so a compartment
+keeps its hue from here to a dive report.
 
-Lives outside src/ because src/ is the distributable. Setuptools discovers
-packages there automatically - configs, handlers, model, processors, utils
-are the five top-level names `pip install master-splinter` puts on the path -
-and a script that redraws README figures is not something an installer of
-the library should receive. The handlers are scripts too, but they are the
-product; this one is documentation tooling.
+Lives outside src/ because src/ is the distributable: `pip install
+master-splinter` puts exactly one name on the path, master_splinter, and a
+script that redraws README figures is not something an installer of the
+library should receive. The style sheet and palette live here for the same
+reason - once the dive report renderer moved out of the library, nothing
+inside it had any use for a colour.
 
 Usage:
 ------
-    PYTHONPATH=src python tools/methodology_figures.py [--output DIR]
+    pip install -e . && python tools/methodology_figures.py [--output DIR]
 
 """
 
 import argparse
-import sys
 from pathlib import Path
 
 import matplotlib
 
-# Chosen before pyplot is imported, matching utils/plotting.py: this script
-# only ever renders to files, and there is no display to talk to.
+# Chosen before pyplot is imported: this script only ever renders to
+# files, and there is no display to talk to.
 matplotlib.use("Agg")
 
 import matplotlib.pyplot as plt  # noqa: E402
 
 ROOT = Path(__file__).resolve().parents[1]
-sys.path.insert(0, str(ROOT / "src"))
 
-from configs.palette import (  # noqa: E402
+from master_splinter import theme  # noqa: E402
+from master_splinter.configs.zhl16 import ZHL16_N2_HALF_TIMES  # noqa: E402
+from master_splinter.model.dive_state import DiveState  # noqa: E402
+from master_splinter.model.splinter_decompression import (  # noqa: E402
+    _calculate_gf_limit,
+    _calculate_maximum_safe_tissue_pressure,
+    ambient_pressure_at_depth,
+    initialize_tissues,
+    load_gas,
+)
+from master_splinter.processors.dive_analysis import (  # noqa: E402
+    analyse_profile,
+)
+from master_splinter.processors.dive_simulation import (  # noqa: E402
+    generate_dive_profile,
+)
+from master_splinter.theme import (  # noqa: E402
     COMPARTMENT,
     GF_CONSERVATIVE_COLOUR,
     GF_MODERATE_COLOUR,
@@ -47,24 +61,12 @@ from configs.palette import (  # noqa: E402
     SECONDARY_INK,
     SURFACE,
 )
-from configs.zhl16 import ZHL16_N2_HALF_TIMES  # noqa: E402
-from model.dive_state import DiveState  # noqa: E402
-from model.splinter_decompression import (  # noqa: E402
-    _calculate_gf_limit,
-    _calculate_maximum_safe_tissue_pressure,
-    ambient_pressure_at_depth,
-    initialize_tissues,
-    load_gas,
-)
-from processors.dive_analysis import analyse_profile  # noqa: E402
-from processors.dive_simulation import generate_dive_profile  # noqa: E402
 
 DEFAULT_OUTPUT = ROOT / "reports" / "methodology"
-STYLE = ROOT / "src" / "configs" / "splinter.mplstyle"
+STYLE = theme.style_path()
 
-# Colour roles come from configs/palette.py, shared with the dive report
-# renderer so a compartment is the same blue in both. The rationale for each
-# hue, and for there being only three compartment slots, lives there.
+# Colour roles come from palette.py next door. The rationale for each hue,
+# and for there being only three compartment slots, lives there.
 COMPARTMENT_COLOUR = COMPARTMENT
 DETAIL_COLOUR = COMPARTMENT[0]
 
@@ -76,9 +78,8 @@ GF_COLOUR = {
 # the green/yellow pair legal despite its CVD warning.
 LIMIT_STYLE = {(0.30, 0.85): "--", (0.50, 0.95): "-."}
 
-# Fast, medium and slow compartments, 0-based, as utils/plotting.py picks
-# them. Compartment 6 (38.3 min) is the one the worked example's detail
-# panel follows.
+# Fast, medium and slow compartments, 0-based. Compartment 6 (38.3 min)
+# is the one the worked example's detail panel follows.
 FAST, MEDIUM, SLOW = 0, 7, 15
 HIGHLIGHTED = (FAST, MEDIUM, SLOW)
 DETAIL = 5
@@ -553,7 +554,10 @@ def main(argv=None):
     arguments = parser.parse_args(argv)
 
     for path in render(arguments.output):
-        print(f"wrote {path.relative_to(ROOT)}")
+        # An --output outside the repository has no path relative to it.
+        print(
+            f"wrote {path.relative_to(ROOT) if path.is_relative_to(ROOT) else path}"
+        )
     return 0
 
 

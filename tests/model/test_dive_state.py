@@ -2,8 +2,8 @@
 
 import pytest
 
-from model.dive_state import DiveState
-from model.splinter_decompression import initialize_tissues
+from master_splinter.model.dive_state import DiveState
+from master_splinter.model.splinter_decompression import initialize_tissues
 
 
 def test_at_surface_starts_in_equilibrium():

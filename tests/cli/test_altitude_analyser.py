@@ -5,11 +5,11 @@ from datetime import UTC, datetime
 
 import pytest
 
-from handlers.altitude_analyser import build_parser, main
-from model.dive_state import DiveState
-from processors.dive_analysis import analyse_profile
-from processors.dive_simulation import generate_dive_profile
-from utils.state_store import save_tissues
+from cli.altitude_analyser import build_parser, main
+from master_splinter.model.dive_state import DiveState
+from master_splinter.processors.dive_analysis import analyse_profile
+from master_splinter.processors.dive_simulation import generate_dive_profile
+from master_splinter.utils.state_store import save_tissues
 
 NOW = datetime(2026, 8, 26, 12, 0, tzinfo=UTC)
 
@@ -151,7 +151,7 @@ def test_the_same_gain_is_harder_from_higher_up(state_file, capsys):
 
 def test_altitude_round_trips_from_the_profile_analyser(tmp_path, capsys):
     """What module A writes, module B reads, with no flags in between."""
-    from handlers.profile_analyser import main as analyse_profile_main
+    from cli.profile_analyser import main as analyse_profile_main
 
     path = tmp_path / "rt.json"
     analyse_profile_main(

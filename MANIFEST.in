@@ -1,0 +1,25 @@
+# The sdist carries the library and the tests that exercise it.
+recursive-include tests *.py
+
+# tests/cli/ exercises cli/, which is not distributed, so shipping those
+# tests would ship a suite that cannot import what it tests.
+prune tests/cli
+
+# references/ once held a scanned copy of Bühlmann (1983) and no longer
+# exists. The prune stays as a guard: it is a third-party copyrighted work,
+# and a release artifact carrying it would republish it. Never restore and
+# graft this directory.
+prune references
+
+# Regenerated output and the tooling that draws it. Neither is something an
+# installer of the library should receive; the figures are served from the
+# repository for the README instead.
+prune reports
+prune tools
+
+# The two commands. Kept in the repository as the reference consumer of the
+# library - and as the end-to-end tests nothing else provides - but they are
+# not the product and carry the only matplotlib dependency.
+prune cli
+
+global-exclude *.py[cod] __pycache__/*

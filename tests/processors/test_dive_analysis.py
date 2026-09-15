@@ -4,13 +4,13 @@ from itertools import pairwise
 
 import pytest
 
-from model.dive_state import DiveState
-from model.splinter_decompression import (
+from master_splinter.model.dive_state import DiveState
+from master_splinter.model.splinter_decompression import (
     calculate_first_stop_depth,
     calculate_stop_ceiling,
 )
-from processors.dive_analysis import Violation, analyse_profile
-from processors.dive_simulation import generate_dive_profile
+from master_splinter.processors.dive_analysis import Violation, analyse_profile
+from master_splinter.processors.dive_simulation import generate_dive_profile
 
 DEEP = [
     (50, 4, (0, 0), "descend"),

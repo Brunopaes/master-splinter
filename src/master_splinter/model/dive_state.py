@@ -9,9 +9,9 @@ profile analyser and the future live dive handler drive identical semantics.
 
 from dataclasses import dataclass, field
 
-from configs.environment import SURFACE_PRESSURE
-from configs.limits import N2_FRACTION_AIR
-from model.splinter_decompression import (
+from master_splinter.configs.environment import SURFACE_PRESSURE
+from master_splinter.configs.limits import N2_FRACTION_AIR
+from master_splinter.model.splinter_decompression import (
     ambient_pressure_at_depth,
     calculate_deco_schedule,
     calculate_first_stop_depth,
@@ -169,9 +169,7 @@ class DiveState:
 
         """
         if duration < 0.0:
-            raise ValueError(
-                f"duration must not be negative, got {duration}"
-            )
+            raise ValueError(f"duration must not be negative, got {duration}")
 
         self.tissues = load_gas_at_pressure(
             self.tissues,

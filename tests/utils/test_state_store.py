@@ -5,10 +5,10 @@ from datetime import UTC, datetime, timedelta
 
 import pytest
 
-from configs.environment import SURFACE_PRESSURE
-from model.dive_state import DiveState
-from model.splinter_decompression import initialize_tissues
-from utils.state_store import (
+from master_splinter.configs.environment import SURFACE_PRESSURE
+from master_splinter.model.dive_state import DiveState
+from master_splinter.model.splinter_decompression import initialize_tissues
+from master_splinter.utils.state_store import (
     SCHEMA_VERSION,
     age_tissues,
     load_state,
@@ -159,8 +159,8 @@ def test_saved_surface_pressure_survives_the_round_trip(state_file):
 
 def test_age_tissues_uses_air_not_the_dive_gas(loaded_state):
     """A diver breathes air at the surface whatever they dived on."""
-    from configs.limits import N2_FRACTION_AIR
-    from model.splinter_decompression import load_gas
+    from master_splinter.configs.limits import N2_FRACTION_AIR
+    from master_splinter.model.splinter_decompression import load_gas
 
     assert age_tissues(loaded_state.tissues, 60.0) == pytest.approx(
         load_gas(

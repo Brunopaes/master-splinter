@@ -11,16 +11,68 @@ The foundational research is described on:
 
 ## Contents
 
+- [Installation](#installation) — what to install, and what you get
+- [Quick look](#quick-look) — the smallest thing that does something
 - [Methodology](#methodology) — the model, its equations, its sea level reference, and a worked dive
-- [Running the Code](#running-the-code) — requirements and project layout
+- [Using the Model Directly](#using-the-model-directly) — the library's public surface
 - [Module A — Dive Profile Analyser](#module-a--dive-profile-analyser) — run a planned dive against the model
 - [Module B — Altitude Analyser](#module-b--altitude-analyser) — flying or driving to altitude afterwards
-- [Using the Model Directly](#using-the-model-directly) — driving it from Python
+- [Project layout](#project-layout) — how the four layers sit
 - [Regenerating the Report Graphs](#regenerating-the-report-graphs) — reproducing everything in `reports/`
+
+## Installation
+
+`Python 3.11` or newer, and no runtime dependencies — the library imports nothing outside the standard library.
+
+```bash
+pip install master-splinter
+```
+
+That gives you the model and nothing else: no commands, no file formats of its own, and no opinion about where your data lives. A front end supplies those, and [Using the Model Directly](#using-the-model-directly) is the whole surface it drives.
+
+To work on the project, from a checkout:
+
+```bash
+pip install -e '.[dev,test]'
+```
+
+The `dev` extra adds `matplotlib`, which nothing in the library needs — only `tools/methodology_figures.py` and the two commands in `cli/` draw anything.
+
+## Quick look
+
+Plan a dive, execute it against the model, and see what it costs you:
+
+```python
+from master_splinter.model.dive_state import DiveState
+from master_splinter.processors.dive_analysis import analyse_profile
+from master_splinter.processors.dive_simulation import generate_dive_profile
+
+profile = generate_dive_profile([
+    (30, 2, (0, 0), "descend"),    # 30 m over 2 min
+    (30, 25, (0, 0), "constant"),  # 25 min on the bottom
+    (0, 3, (0, 0), "ascend"),      # up in 3 min
+])
+report = analyse_profile(profile, DiveState.at_surface())
+
+for stop in report.stops:
+    print(f"{stop.depth:.0f} m for {stop.duration:.1f} min")
+print(f"{report.total_deco_time:.1f} min of decompression")
+```
+
+```text
+6 m for 3.2 min
+3 m for 6.5 min
+9.7 min of decompression
+```
+
+That three-minute ascent was never going to happen: `analyse_profile` clamps to
+the decompression ceiling and reports the stops the clamping forced. The rest
+of that surface is in [Using the Model Directly](#using-the-model-directly);
+*why* those are the stops is [Methodology](#methodology).
 
 ## Methodology
 
-How the model works, before how to run it. The four sections below are the
+Why the numbers above are the numbers they are. The four sections below are the
 tissue table, the equations that drive it, the sea level reference they are all
 measured against, and a worked example small enough to follow by hand.
 
@@ -32,9 +84,9 @@ The `ZHL-16` tissue table lists 16 mathematical compartments that represent diff
 >
 > `Bühlmann` published three. `ZHL-16A` is the original theoretical set, in which both coefficients fall straight out of the half-time — `a = 2 / ∛T` and `b = 1.005 − 1/√T`. It proved too permissive against real data, so he revised the mid and slow `A` values by hand, giving `ZHL-16B` for printed tables and `ZHL-16C` for dive computers. The `B` values were **never revised** and are identical in all three sets, which is the quickest way to spot a corrupted table.
 >
-> Both sets live in `src/configs/zhl16.py`, so changing variant really is the single edit that file claims. `16A` is materially more permissive — on a `30 m / 60 min` dive it asks for about a fifth less decompression.
+> Both sets live in `src/master_splinter/configs/zhl16.py`, so changing variant really is the single edit that file claims. `16A` is materially more permissive — on a `30 m / 60 min` dive it asks for about a fifth less decompression.
 
-![Nitrogen loading curves for all 16 ZHL-16C compartments held at 15 m. Compartments 1, 8 and 16 are highlighted; the other 13 recede into a grey ensemble. The fastest saturates within 40 minutes, the slowest has barely moved in 120](reports/methodology/tissue-uptake.png)
+![Nitrogen loading curves for all 16 ZHL-16C compartments held at 15 m. Compartments 1, 8 and 16 are highlighted; the other 13 recede into a grey ensemble. The fastest saturates within 40 minutes, the slowest has barely moved in 120](https://raw.githubusercontent.com/Brunopaes/master-splinter/main/reports/methodology/tissue-uptake.png)
 
 > These compartments are not actual organs, but _conceptual_ models that simulate how inert gases (e.g. nitrogen or helium) are absorbed and released in different parts of the body at different rates.
 
@@ -65,7 +117,7 @@ The `ZHL-16` tissue table lists 16 mathematical compartments that represent diff
 
 #### `A` and `B` Values
 
-![M-value against depth for a fast, medium and slow compartment; the fast one starts highest at the surface and climbs most steeply](reports/methodology/m-value-limits.png)
+![M-value against depth for a fast, medium and slow compartment; the fast one starts highest at the surface and climbs most steeply](https://raw.githubusercontent.com/Brunopaes/master-splinter/main/reports/methodology/m-value-limits.png)
 
 They are used to calculate the `M-value`, the maximum safe inert gas pressure in a tissue:
 
@@ -206,7 +258,7 @@ Where:
 > Example: `GF_low` = 30 → only allows `30%` of the way to the full `Bühlmann` limit at the first deco stop.</br>
 > Example: `GF_high` = 85 → allows `85%` of the full `Bühlmann` `M-value` as the final tissue ceiling at surfacing.
 
-![M-value against depth with GF 30/85 and GF 50/95 lines beneath it, both clamped to GF_low below a 30 m first stop anchor and interpolating up to GF_high at the surface](reports/methodology/gradient-factors.png)
+![M-value against depth with GF 30/85 and GF 50/95 lines beneath it, both clamped to GF_low below a 30 m first stop anchor and interpolating up to GF_high at the surface](https://raw.githubusercontent.com/Brunopaes/master-splinter/main/reports/methodology/gradient-factors.png)
 
 > This graph compares conservative (GF `30/85`) and less conservative (GF `50/95`) gradient factors, showing how each setting adjusts the safe tissue pressure ceiling below the `Bühlmann` `M-value` line across different depths. Both lines sit below the `M-value` at every depth and above ambient pressure, which is the `GF 0` floor drawn dotted. The kink at `30 m` is the first stop anchor: deeper than it the factor is clamped to `GF_low`, shallower it interpolates towards `GF_high`.
 
@@ -226,7 +278,7 @@ The practical impact of GF only becomes noticeable in longer dives, more aggress
 
 ### The Sea Level Reference
 
-Every pressure above is absolute, in bar, and every one of them is measured against a **sea level of `1.01325 bar`** — the published International Standard Atmosphere `P0` (`101325 Pa`), set once as `SURFACE_PRESSURE` in `src/configs/environment.py`.
+Every pressure above is absolute, in bar, and every one of them is measured against a **sea level of `1.01325 bar`** — the published International Standard Atmosphere `P0` (`101325 Pa`), set once as `SURFACE_PRESSURE` in `src/master_splinter/configs/environment.py`.
 
 That is worth stating because most diving literature rounds it to `1 bar`, and this project deliberately does not. The reason is the elevation conversion:
 
@@ -242,7 +294,7 @@ Those two constants are calibrated as a set with `P0 = 101325 Pa`. Keeping them 
 | `1,800 m` | `0.8042 bar`       | `0.8149 bar`       |
 | `2,400 m` | `0.7464 bar`       | `0.7563 bar`       |
 
-The middle column is a pressure that belongs to neither convention: it is `2,400 m` on the diving scale and `2,505 m` on the standard atmosphere. Since [Module B](#module-b--altitude-analyser) compares tissue pressures directly against these figures, the project uses the ISA value throughout so that a stated elevation means what it says.
+The middle column is a pressure that belongs to neither convention: it is `2,400 m` on the diving scale and `2,505 m` on the standard atmosphere. Since [altitude analysis](#going-up-afterwards) compares tissue pressures directly against these figures, the project uses the ISA value throughout so that a stated elevation means what it says.
 
 The visible consequences are small and all of a piece — a sea level dive reports `1.0132 bar` rather than `1.0000 bar`, surface equilibrium is `0.7509 bar` rather than the `0.7405 bar` of the tables, and compartment 1's surfacing `M-value` is `2.99 bar` rather than the tabulated `2.96 bar`. Each is the same equation evaluated at a real sea level instead of a rounded one.
 
@@ -284,56 +336,105 @@ Here's how these formulas come together in a practical example of a typical dive
 
 The dive simulation models a straightforward profile: a descent to `15 meters` for `30 minutes`, followed by a direct ascent to `5 meters` with a `3-minute` safety stop, and then _surfacing_. The `fast` compartment is the one that visibly does the work — it loads to `1.92 bar` over the bottom phase and is already off-gassing by the safety stop, ending at `1.53 bar`. The `medium` and `slow` compartments are still filling when the diver surfaces; on a dive this short they barely turn over at all, peaking at `1.04` and `0.79 bar` respectively.
 
-![Two panels: the executed depth profile, and compartment 6's tissue pressure tracking far below its M-value and both GF ceilings throughout](reports/methodology/worked-example-profile.png)
+![Two panels: the executed depth profile, and compartment 6's tissue pressure tracking far below its M-value and both GF ceilings throughout](https://raw.githubusercontent.com/Brunopaes/master-splinter/main/reports/methodology/worked-example-profile.png)
 
 Using `Bühlmann’s` `ZHL-16` algorithm, the tissue pressure remains safely below the calculated `M-value` limit. Two sets of gradient factors (GF `30/85` and GF `50/95`) were applied to assess additional safety margins. The tissue pressure did not exceed either of these GF-adjusted ceilings at any point, indicating the diver stayed within conservative ascent limits.
 
-![Fast, medium and slow compartment pressures over the dive, each drawn against its own GF 30/85 ceiling and staying well clear of it](reports/methodology/worked-example-tissues.png)
+![Fast, medium and slow compartment pressures over the dive, each drawn against its own GF 30/85 ceiling and staying well clear of it](https://raw.githubusercontent.com/Brunopaes/master-splinter/main/reports/methodology/worked-example-tissues.png)
 
 > Each compartment is paired with **its own** `GF 30/85` ceiling, in the same colour. Drawing one compartment's ceiling across all three would compare a pressure against a limit that was never its own.
 
 The absence of any threshold crossings suggests that no decompression stop was required, and the `3-minute` hold at `5 meters` was sufficient to manage `supersaturation` before surfacing. Overall, this profile represents a clean, `no-decompression` dive that adheres well to both standard and conservative ascent protocols.
 
-## Running the Code
+## Using the Model Directly
 
-Two commands share one model and one state file. `profile_analyser` executes a
-dive and writes the tissue state it ends on; `altitude_analyser` reads that
-state and decides whether you can go up afterwards.
+`DiveState` carries the tissue loading and the gradient factor anchor, and is the object every entry point below drives.
 
-### Requirements
+### Analysing a dive
 
-`Python 3.13`. Install the project and its test extras from the repository root:
+The [Quick look](#quick-look) above, with what it left out. A profile is a list of `(depth, duration, elapsed)` tuples: `generate_dive_profile` builds one from phase boundaries, `load_profile` reads one from a dive computer log.
 
-```bash
-pip install -e '.[test]'
+```python
+from master_splinter.model.dive_state import DiveState
+from master_splinter.processors.dive_analysis import analyse_profile
+from master_splinter.processors.dive_simulation import generate_dive_profile
+
+profile = generate_dive_profile([
+    (30, 2, (0, 0), "descend"),
+    (30, 25, (0, 0), "constant"),
+    (0, 3, (0, 0), "ascend"),
+])
+
+report = analyse_profile(profile, DiveState.at_surface(gas_fraction=0.79))
+print(report.stops, report.total_deco_time, report.findings)
 ```
 
-### Project layout
+`analyse_profile` does not merely judge the plan — it *executes* it, clamping every ascent to the decompression ceiling. So `report.samples` is the dive that could actually be performed, not the one requested, and `report.stops` is what clamping forced. `report.findings` lists where the plan itself was unsafe, each tagged with a `Violation`:
 
-Four layers, each depending only on the ones above it. The model knows nothing about files or command lines, which is what lets the same equations serve a dive profile and an altitude question.
+```python
+from master_splinter.processors.dive_analysis import Violation
 
-```text
-src/
-  configs/     zhl16.py       the algorithm variant — half-times, A and B
-               limits.py      conservatism — ascent rate, ppO2, gas mixes
-               environment.py water and atmosphere — pressure conversions
-  model/       splinter_decompression.py   pure ZHL-16C, no I/O
-               atmosphere.py               elevation <-> pressure
-               dive_state.py               tissue loading over time
-  processors/  dive_analysis.py       execute a profile, judge it
-               altitude_analysis.py   elevation change after a dive
-               dive_simulation.py     synthetic profile generator
-  utils/       profile_loader.py  read CSV/JSON dive logs
-               state_store.py     tissue state between dives
-               plotting.py        render a report
-               cli.py             shared argparse validation
-  handlers/    profile_analyser.py    the dive command
-               altitude_analyser.py   the altitude command
-references/    source material — the Bühlmann monograph
-reports/       generated output — see Regenerating the report graphs
+for finding in report.findings_of(Violation.ASCENT_RATE):
+    print(finding)
 ```
 
-> **Pressure is the model's currency, not depth.** `load_gas_at_pressure` and `DiveState.step_at_pressure` are the primitives; `step(depth, …)` and `pressure_at_elevation` are two ways of naming a pressure. A diver ascending and a diver boarding an aircraft are doing the same thing to their tissues, so both go through one code path — which is also what a future live-dive handler will drive.
+The knobs are keyword-only: `ascent_rate`, `deco_step`, and `ppo2_limit` (bar, default `1.4`, and never above `PPO2_CONTINGENCY_LIMIT` — see [`ppo2_limit`](#validating-user-input) below).
+
+### Going up afterwards
+
+`analyse_altitude_change` answers the flying-after-diving question against the tissue state a dive ended on. The gain is measured *relative to the dive site*, which is why `surface_pressure` is a parameter rather than an assumption:
+
+```python
+from master_splinter.processors.altitude_analysis import analyse_altitude_change
+
+verdict = analyse_altitude_change(
+    report.final_state.tissues,
+    elevation_gain=2400,        # a pressurised cabin
+    surface_interval=18 * 60,   # minutes since surfacing
+    gf_high=0.85,
+)
+print(verdict.safe, verdict.gradient.wait_minutes, verdict.gradient.max_gain)
+```
+
+It reports two `Verdict`s side by side — `raw` for unmodified Bühlmann and `gradient` for the GF-limited answer — and `report.safe` is true only when both permit the change. When a verdict is unsafe, `wait_minutes` is the extra surface time needed, or `None` when no surface interval is ever enough.
+
+> This models tissue nitrogen only. It is not a substitute for published flying-after-diving guidance, which allows 12 h after a single no-stop dive and 18 h after decompression dives.
+
+### Carrying state between dives
+
+What carries over is the tissue pressures, not the M-values. Every entry point takes an explicit path — the library has no default state location, because where your state lives is your decision:
+
+```python
+from master_splinter.utils.state_store import read_state, save_tissues
+
+save_tissues(report.final_state, "dive.json")
+
+saved = read_state("dive.json")          # exactly as written, not aged
+if saved is not None:
+    tissues = saved.tissues
+    interval = saved.minutes_since()     # wall-clock minutes at the surface
+```
+
+Reading and ageing are deliberately separate: `load_state` does both at once, `read_state` gives you the file as saved so you can age it against an interval you supply. An unusable file reads as `None` rather than raising, so a corrupt state degrades to "start fresh" — call `state_problem(path)` to find out whether that happened and say so.
+
+### Validating user input
+
+The bounds a front end needs are in one place, so two front ends cannot disagree about them. Each takes the text a user typed and raises `ValueError` with a message fit to show that user:
+
+```python
+import argparse
+from master_splinter import validation
+
+def gradient_factors(text):
+    try:
+        return validation.gradient_factors(text)
+    except ValueError as error:
+        raise argparse.ArgumentTypeError(str(error)) from error
+```
+
+`gradient_factors` parses `LOW/HIGH` into a pair of fractions, `ppo2_limit` caps at the contingency limit, and `elevation` accepts a signed change bounded by where the troposphere formula stops being physics.
+
+The two commands below live in `cli/`. They are **not** installed by `pip install master-splinter` and ship in no release artifact — they are kept in the repository as its reference consumer: the proof the library works end to end, and the only place the whole pipeline is exercised in one go. Run them from a checkout.
 
 ## Module A — Dive Profile Analyser
 
@@ -344,7 +445,7 @@ Takes a planned dive — synthetic or a real dive computer log — and executes 
 The analyser runs a planned dive profile against the model, reports the stops it actually requires, flags where the plan was unsafe, and writes a graph:
 
 ```bash
-PYTHONPATH=src python src/handlers/profile_analyser.py
+python -m cli.profile_analyser
 ```
 
 ```text
@@ -370,7 +471,7 @@ Actual runtime: 36.0 min
 Safe to surface (no GF): True
 Safe to surface (with GF): True
 
-Graph written to reports/diving_simulations/dive_simulation.png
+Graph written to dive_simulation.png
 ```
 
 > The default profile is deliberately imperfect — it ascends through its own ceiling and surfaces owing two and a half minutes at `3 m`. The `Findings` block is the analyser telling you so; the executed dive shown on the graph is the corrected one.
@@ -388,7 +489,7 @@ Graph written to reports/diving_simulations/dive_simulation.png
 | `--gf LOW/HIGH`           | `30/85`                | Gradient factors                                           |
 | `--altitude M`            | `0` or saved site      | Dive site elevation above sea level                        |
 | `--surface-interval MIN`  | wall clock             | Minutes since the last dive                                |
-| `--state-file PATH`       | `.splinter_state.json` | Tissue state carried between dives                         |
+| `--state-file PATH`       | `$XDG_STATE_HOME/master-splinter/state.json` | Tissue state carried between dives                         |
 | `--fresh`                 | off                    | Ignore saved state, start at surface equilibrium           |
 | `--no-save`               | off                    | Analyse without persisting tissue state                    |
 | `--output PATH`           | `dive_simulation.png`  | Graph destination                                          |
@@ -471,7 +572,7 @@ A profile can also be perfectly in range and still be one the model cannot decom
 error: cannot analyse dive.csv: Ascent did not clear within 720 minutes; tissue pressures are likely invalid.
 ```
 
-When omitted, the built-in synthetic profile is generated instead — a `40 m` dive with a staged ascent, defined in `DEFAULT_BOUNDARIES` in `src/handlers/profile_analyser.py`.
+When omitted, the built-in synthetic profile is generated instead — a `40 m` dive with a staged ascent, defined in `DEFAULT_BOUNDARIES` in `cli/profile_analyser.py`.
 
 </details>
 
@@ -487,7 +588,7 @@ The model tracks nitrogen only, so a mix is fully described by its nitrogen frac
 
 `--n2-fraction` takes any value strictly between `0` and `1` for a mix outside the presets, and reports as `Gas: custom (0.50 N2)`. The two flags are **mutually exclusive** — passing both is an argparse error. An out-of-range fraction exits with status `2`.
 
-Less nitrogen means less decompression but a shallower depth limit. The `MOD` columns above are the maximum operating depths the analyser checks against; exceeding them produces an `OXYGEN (MOD)` finding. Presets live in `GAS_MIXES` in `src/configs/limits.py`.
+Less nitrogen means less decompression but a shallower depth limit. The `MOD` columns above are the maximum operating depths the analyser checks against; exceeding them produces an `OXYGEN (MOD)` finding. Presets live in `GAS_MIXES` in `src/master_splinter/configs/limits.py`.
 
 </details>
 
@@ -496,7 +597,7 @@ Less nitrogen means less decompression but a shallower depth limit. The `MOD` co
 The oxygen partial pressure a plan is judged against, defaulting to the `1.4 bar` working limit. Lower it for long exposures or a conservative plan; raise it to accept more. Exceeding it produces an `OXYGEN (MOD)` finding and moves the reported `MOD` accordingly:
 
 ```bash
-PYTHONPATH=src python src/handlers/profile_analyser.py --fresh --ppo2-limit 1.0
+python -m cli.profile_analyser --fresh --ppo2-limit 1.0
 ```
 
 ```text
@@ -551,7 +652,7 @@ Ignored entirely when `--fresh` is passed, since there is then no saved state to
 
 <details><summary><code>--state-file PATH</code>, <code>--fresh</code>, <code>--no-save</code> — tissue state between dives</summary></br>
 
-`--state-file` points at the JSON file holding tissue pressures from the previous dive. It defaults to `.splinter_state.json` in the repository root, which is gitignored.
+`--state-file` points at the JSON file holding tissue pressures from the previous dive. It defaults to `$XDG_STATE_HOME/master-splinter/state.json` in the repository root, which is gitignored.
 
 `--fresh` ignores any saved state and starts from surface equilibrium. It takes precedence over `--surface-interval`.
 
@@ -562,7 +663,7 @@ A missing, empty, or corrupt state file is not an error: the run falls back to s
 It does, however, **say so**. That fallback errs towards _less_ decompression, so a diver who really is loaded would otherwise read a clean dive with nothing to indicate their residual nitrogen had been discarded:
 
 ```text
-WARNING: state file .splinter_state.json has schema version 1, expected 2.
+WARNING: state file /home/you/.local/state/master-splinter/state.json has schema version 1, expected 2.
          Starting from surface equilibrium - residual loading from a previous
          dive is NOT accounted for, so the decompression below may be understated.
          Re-run that dive, or pass --fresh to start clean deliberately.
@@ -578,7 +679,7 @@ The gradient factor anchor is deliberately not part of the saved state; each div
 
 <details><summary><code>--output PATH</code> and <code>--no-graph</code> — rendering</summary></br>
 
-`--output` sets the graph destination, defaulting to `reports/diving_simulations/dive_simulation.png`. The parent directory must already exist; an unwritable destination exits with status `2` rather than raising:
+`--output` sets the graph destination, defaulting to `dive_simulation.png`. The parent directory must already exist; an unwritable destination exits with status `2` rather than raising:
 
 ```text
 error: cannot write /tmp/absent/graph.png: [Errno 2] No such file or directory: '/tmp/absent/graph.png'
@@ -608,8 +709,8 @@ Worked examples, each self-contained. Expand the one you need.
 Less nitrogen in the mix means less nitrogen in the diver. On the default `40 m` profile, air owes `4.5` minutes of decompression and `EAN40` owes none:
 
 ```bash
-PYTHONPATH=src python src/handlers/profile_analyser.py --gas air   --fresh
-PYTHONPATH=src python src/handlers/profile_analyser.py --gas ean40 --fresh
+python -m cli.profile_analyser --gas air   --fresh
+python -m cli.profile_analyser --gas ean40 --fresh
 ```
 
 `EAN40` also earns a finding that the nitrogen model alone would never produce:
@@ -628,9 +729,9 @@ PYTHONPATH=src python src/handlers/profile_analyser.py --gas ean40 --fresh
 Tissue pressures are written to a state file after every run and picked up by the next one, off-gassed for the time spent at the surface. The residual nitrogen makes the second dive considerably more expensive:
 
 ```bash
-PYTHONPATH=src python src/handlers/profile_analyser.py --fresh              # 4.5 min of deco
-PYTHONPATH=src python src/handlers/profile_analyser.py --surface-interval 45  # 21.3 min
-PYTHONPATH=src python src/handlers/profile_analyser.py --surface-interval 720 # back to 4.5 min
+python -m cli.profile_analyser --fresh              # 4.5 min of deco
+python -m cli.profile_analyser --surface-interval 45  # 21.3 min
+python -m cli.profile_analyser --surface-interval 720 # back to 4.5 min
 ```
 
 The surface interval defaults to the wall-clock gap since the last run; `--surface-interval` overrides it so you can plan a dive that has not happened yet. Use `--fresh` to ignore saved state entirely.
@@ -645,8 +746,8 @@ The surface interval defaults to the wall-clock gap since the last run; `--surfa
 A mountain lake is a harder dive than the same profile at sea level, because there is less pressure to surface _into_. `--altitude` sets the dive site elevation; the model converts it to a surface pressure and every ceiling, `M-value` and `MOD` below is computed against that:
 
 ```bash
-PYTHONPATH=src python src/handlers/profile_analyser.py --fresh                  # 4.5 min of deco
-PYTHONPATH=src python src/handlers/profile_analyser.py --fresh --altitude 1800  # 10.8 min
+python -m cli.profile_analyser --fresh                  # 4.5 min of deco
+python -m cli.profile_analyser --fresh --altitude 1800  # 10.8 min
 ```
 
 ```text
@@ -679,7 +780,7 @@ time,depth
 30,0
 CSV
 
-PYTHONPATH=src python src/handlers/profile_analyser.py --profile dive.csv --fresh
+python -m cli.profile_analyser --profile dive.csv --fresh
 ```
 
 </details>
@@ -691,7 +792,7 @@ Ascending to altitude lowers ambient pressure, which is arithmetically the same 
 ### Quick start for altitude
 
 ```bash
-PYTHONPATH=src python src/handlers/altitude_analyser.py --elevation-gain 2400
+python -m cli.altitude_analyser --elevation-gain 2400
 ```
 
 ```text
@@ -724,7 +825,7 @@ and 18 h after decompression dives.
 | `--altitude M`           | saved site             | Dive site elevation, overriding the state file               |
 | `--surface-interval MIN` | wall clock             | Minutes since the last dive                                  |
 | `--gf LOW/HIGH`          | `30/85`                | Only `HIGH` applies; there is no ascent to interpolate along |
-| `--state-file PATH`      | `.splinter_state.json` | Tissue state left by the last dive                           |
+| `--state-file PATH`      | `$XDG_STATE_HOME/master-splinter/state.json` | Tissue state left by the last dive                           |
 
 ### Altitude argument reference
 
@@ -805,7 +906,7 @@ Worked examples, each self-contained. Expand the one you need.
 A `1,000 m` pass straight after surfacing is the interesting case, because raw `Bühlmann` permits it and `GF 85` does not:
 
 ```bash
-PYTHONPATH=src python src/handlers/altitude_analyser.py --elevation-gain 1000 --surface-interval 0
+python -m cli.altitude_analyser --elevation-gain 1000 --surface-interval 0
 ```
 
 ```text
@@ -829,7 +930,7 @@ That gap is the whole point of reporting both. `+0.0015 bar` of margin is under 
 Having dived at `1,800 m`, driving back down to sea level raises ambient pressure, which can only help:
 
 ```bash
-PYTHONPATH=src python src/handlers/altitude_analyser.py --elevation-gain -1800 --surface-interval 0
+python -m cli.altitude_analyser --elevation-gain -1800 --surface-interval 0
 ```
 
 ```text
@@ -859,7 +960,7 @@ You do not have to iterate towards the answer — an `UNSAFE` verdict already ca
 `--surface-interval` then checks a departure that has not happened yet, rather than waiting to find out:
 
 ```bash
-PYTHONPATH=src python src/handlers/altitude_analyser.py --elevation-gain 2400 --surface-interval 240
+python -m cli.altitude_analyser --elevation-gain 2400 --surface-interval 240
 ```
 
 ```text
@@ -881,87 +982,75 @@ Note which compartment moved. On surfacing it is number `5` at a `27` minute hal
 
 > **Read the caveat.** For the default dive the model clears cabin altitude in under half an hour, while `DAN` asks for `12` hours. They are answering different questions — this computes when tissue nitrogen falls inside the `ZHL-16C` limit, whereas published guidance builds in a margin for bubble formation, individual variation and the consequences of being wrong at `10,000` feet with no chamber. **Follow the published guidance.** Descending is the one case with no argument: it raises ambient pressure and is always permitted.
 
-## Using the Model Directly
+## Project layout
 
-The handler is a thin wrapper. `DiveState` carries the tissue loading and the gradient factor anchor, and is the same object the future live-dive handler will drive:
+Four layers, each depending only on the ones above it. The model knows nothing about files or command lines, which is what lets the same equations serve a dive profile and an altitude question.
 
-```python
-from processors.dive_analysis import analyse_profile
-from processors.dive_simulation import generate_dive_profile
-from model.dive_state import DiveState
-
-profile = generate_dive_profile([
-    (30, 2, (0, 0), "descend"),
-    (30, 25, (0, 0), "constant"),
-    (0, 3, (0, 0), "ascend"),
-])
-
-report = analyse_profile(profile, DiveState.at_surface(gas_fraction=0.79))
-print(report.stops, report.total_deco_time, report.findings)
+```text
+src/master_splinter/
+  validation.py             bounds checking shared by every front end
+  configs/     zhl16.py       the algorithm variant — half-times, A and B
+               limits.py      conservatism — ascent rate, ppO2, gas mixes
+               environment.py water and atmosphere — pressure conversions
+  model/       splinter_decompression.py   pure ZHL-16C, no I/O
+               atmosphere.py               elevation <-> pressure
+               dive_state.py               tissue loading over time
+  processors/  dive_analysis.py       execute a profile, judge it
+               altitude_analysis.py   elevation change after a dive
+               dive_simulation.py     synthetic profile generator
+  utils/       profile_loader.py  read CSV/JSON dive logs
+               state_store.py     tissue state between dives
+  theme/       __init__.py        colour roles, and style_path()
+               splinter.mplstyle  the dark theme, shipped as package data
+cli/           profile_analyser.py    Module A
+               altitude_analyser.py   Module B
+               plotting.py            renders a dive report
+               validators.py          argparse over validation.py
+               paths.py               where this front end keeps things
+reports/       methodology figures — see Regenerating the report graphs
+tools/         methodology_figures.py  redraws the figures above
 ```
+
+`src/master_splinter/` is the whole distributable: `pip install master-splinter` puts exactly one name on your path. Everything outside it — `cli/`, `reports/`, `tools/`, `tests/` — is repository furniture and ships in no release artifact.
+
+`theme/` is the exception that proves the layering: it holds no model code, but `cli/` and `tools/` both draw and both need the same colours, so it ships once rather than being vendored into each. Reach it with `master_splinter.theme.style_path()`.
+
+> **Pressure is the model's currency, not depth.** `load_gas_at_pressure` and `DiveState.step_at_pressure` are the primitives; `step(depth, …)` and `pressure_at_elevation` are two ways of naming a pressure. A diver ascending and a diver boarding an aircraft are doing the same thing to their tissues, so both go through one code path — which is also what a future live-dive handler will drive.
 
 ## Regenerating the Report Graphs
 
-Everything under `reports/` is generated, and every one of the commands below is deterministic — the synthetic profile's depth jitter is seeded (`--seed`, default `0`), so a regenerated graph is byte-identical unless the model itself changed.
+Everything under `reports/` is generated, from `tools/methodology_figures.py`, and it is deterministic — the same model, the same style sheet, byte-identical output unless the model itself changed.
 
-Three come straight from the analyser. `--fresh --no-save` keeps them independent of whatever tissue state happens to be lying around:
-
-```bash
-export PYTHONPATH=src
-R=reports/diving_simulations
-
-python src/handlers/profile_analyser.py --fresh --no-save \
-  --output $R/dive_simulation.png
-python src/handlers/profile_analyser.py --fresh --no-save --gas air \
-  --output $R/dive_simulation_no_nitrox.png
-python src/handlers/profile_analyser.py --fresh --no-save --gas ean40 \
-  --output $R/dive_simulation_40_nitrox.png
-```
-
-> `dive_simulation.png` and `dive_simulation_no_nitrox.png` are **byte-identical**, because `air` is the default gas. The second name is kept only so the nitrox comparison reads as a matched pair.
-
-The fourth is the worked example from [Simulating a Simple Dive](#simulating-a-simple-dive), which is not the default profile and so needs the library directly:
-
-```python
-from model.dive_state import DiveState
-from processors.dive_analysis import analyse_profile
-from processors.dive_simulation import generate_dive_profile
-from utils.plotting import close_figure, render_dive_report
-
-profile = generate_dive_profile([
-    (15, 1, (0.0, 0.0), "descend"),
-    (15, 30, (0.0, 0.0), "constant"),
-    (5, 1, (0.0, 0.0), "ascend"),
-    (5, 3, (0.0, 0.0), "constant"),
-    (0, 1, (0.0, 0.0), "ascend"),
-])
-report = analyse_profile(profile, DiveState.at_surface())
-figure = render_dive_report(
-    report,
-    output_path="reports/diving_simulations/dive_profile.png",
-    title="Worked Example: 15 m for 30 min with a 5 m Safety Stop",
-)
-close_figure(figure)
-```
-
-> **Generate it, do not hand-log it.** Writing this profile as a sparse `CSV` and passing `--profile` produces a *wrong looking* graph: the `30` minute bottom phase becomes a single sample, and the renderer draws a straight line from the descent to the ascent, showing a slow sink to `15 m` that never happened. That is the sampling caveat under [`--profile`](#argument-reference) made visible. `generate_dive_profile` samples every `10` seconds and the artefact disappears.
+The dive report figures that used to sit alongside these were drawn by the renderer that left with the CLI, so they are gone: the package no longer draws anything. Whichever front end inherits the commands owns those figures, and needs `matplotlib` to redraw them.
 
 ### Methodology Figures
 
 The five figures embedded in [Methodology](#methodology) are explanatory rather than analytical — they illustrate the equations themselves, not one dive's report — so they live in `reports/methodology/` and regenerate together:
 
 ```bash
-export PYTHONPATH=src
 python tools/methodology_figures.py
 ```
 
 They share one dark theme with everything else this project draws.
 
-> Every value in them is computed by `model/splinter_decompression.py` and `configs/zhl16.py` at render time — nothing is transcribed. That is deliberate. The images these replaced had drifted: they showed a `4` minute compartment `1` from `ZHL-16A`, an `M-value` of `A + B · P_ambient`, and gradient factor lines _above_ the `M-value` rather than below it. A figure that recomputes cannot drift.
+> Every value in them is computed by `master_splinter/model/splinter_decompression.py` and
+> `master_splinter/configs/zhl16.py` at render time — nothing is transcribed. That is deliberate. The images these replaced had drifted: they showed a `4` minute compartment `1` from `ZHL-16A`, an `M-value` of `A + B · P_ambient`, and gradient factor lines _above_ the `M-value` rather than below it. A figure that recomputes cannot drift.
 
 ### The Look
 
-One dark theme for everything, in two files. `src/configs/splinter.mplstyle` dresses the canvas — surface, grid, ink, the fallback cycler — and `src/configs/palette.py` names the colours that carry meaning, so a compartment is the same blue in a dive report as in a teaching figure. It replaced `bbg.mplstyle`, which styled only the reports.
+One dark theme for everything, in `master_splinter.theme`. The style sheet dresses the canvas — surface, grid, ink, the fallback cycler — and the module names the colours that carry meaning, so a compartment is the same blue in a dive report as in a teaching figure. It replaced `bbg.mplstyle`, which styled only the reports.
+
+It ships with the package so `cli/`, `tools/` and any consumer read one copy:
+
+```python
+import matplotlib.pyplot as plt
+from master_splinter import theme
+
+with plt.style.context(theme.style_path()):
+    ...
+```
+
+`style.context` rather than `style.use` is worth the habit — `use` mutates global rcParams, which matters to anything rendering more than one figure at a time. The style sheet is also emphatically dark and fixes its own figure size; a consumer embedding charts in a light page wants the colour roles and its own canvas.
 
 <details><summary>how colour is assigned</summary></br>
 

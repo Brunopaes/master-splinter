@@ -2,15 +2,18 @@
 
 import pytest
 
-from configs.environment import SEAWATER_METERS_PER_BAR, SURFACE_PRESSURE
-from configs.limits import STOP_INCREMENT
-from configs.zhl16 import (
+from master_splinter.configs.environment import (
+    SEAWATER_METERS_PER_BAR,
+    SURFACE_PRESSURE,
+)
+from master_splinter.configs.limits import STOP_INCREMENT
+from master_splinter.configs.zhl16 import (
     WATER_VAPOR_PRESSURE,
     ZHL16_A_VALUES,
     ZHL16_B_VALUES,
     ZHL16_N2_HALF_TIMES,
 )
-from model.splinter_decompression import (
+from master_splinter.model.splinter_decompression import (
     _calculate_gf_ceiling_pressure,
     _calculate_maximum_safe_tissue_pressure,
     _calculate_minimum_ambient_pressure,

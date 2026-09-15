@@ -25,6 +25,8 @@ axis and never compared against them, so it takes ink rather than a slot.
 
 """
 
+from importlib import resources
+
 # The chart surface the contrast checks were run against. Kept here so a
 # caller drawing its own patch behind a label uses the same value the
 # validator saw.
@@ -52,3 +54,22 @@ MUTED = "#898781"  # planned depth, ambient pressure, ensembles
 # An event on the profile rather than a series of its own, so it is carried
 # by a marker shape and a surface ring as well as by this colour.
 DECO_STOP_COLOUR = "#D55181"
+
+
+def style_path():
+    """Filesystem path to splinter.mplstyle, wherever the package installed.
+
+    Notes:
+    ------
+    The style sheet ships as package data and is found through
+    importlib.resources rather than by walking up from __file__, so it
+    resolves the same from a source checkout, a wheel and a zipimport.
+
+    Matplotlib is not imported here and is not a dependency of this package.
+    The style sheet is inert text; only whoever reads it needs matplotlib:
+
+        import matplotlib.pyplot as plt
+        plt.style.use(style_path())
+
+    """
+    return resources.files(__name__) / "splinter.mplstyle"

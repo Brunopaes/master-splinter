@@ -11,30 +11,31 @@ import random
 import sys
 from pathlib import Path
 
-from configs.environment import SURFACE_PRESSURE
-from configs.limits import (
+from master_splinter.configs.environment import SURFACE_PRESSURE
+from master_splinter.configs.limits import (
     GAS_MIXES,
     MAX_ASCENT_RATE,
     PPO2_CONTINGENCY_LIMIT,
     PPO2_WORKING_LIMIT,
 )
-from model.atmosphere import elevation_at_pressure, pressure_at_elevation
-from model.dive_state import DiveState
-from processors.dive_analysis import Violation, analyse_profile
-from processors.dive_simulation import generate_dive_profile
-from utils import cli
-from utils.plotting import close_figure, render_dive_report
-from utils.profile_loader import ProfileFormatError, load_profile
-from utils.state_store import (
-    DEFAULT_STATE_PATH,
+from master_splinter.model.atmosphere import (
+    elevation_at_pressure,
+    pressure_at_elevation,
+)
+from master_splinter.model.dive_state import DiveState
+from master_splinter.processors.dive_analysis import Violation, analyse_profile
+from master_splinter.processors.dive_simulation import generate_dive_profile
+from cli import validators
+from cli.paths import DEFAULT_OUTPUT, default_state_path
+from cli.plotting import close_figure, render_dive_report
+from master_splinter.utils.profile_loader import (
+    ProfileFormatError,
+    load_profile,
+)
+from master_splinter.utils.state_store import (
     load_state,
     save_tissues,
     state_problem,
-)
-
-ROOT = Path(__file__).resolve().parents[2]
-DEFAULT_OUTPUT = (
-    ROOT / "reports" / "diving_simulations" / "dive_simulation.png"
 )
 
 # The reference dive: 40 m for 15 minutes with a staged ascent.
@@ -84,13 +85,13 @@ def build_parser():
     )
     parser.add_argument(
         "--gf",
-        type=cli.gradient_factors,
+        type=validators.gradient_factors,
         default="30/85",
         help="gradient factors as LOW/HIGH (default: 30/85)",
     )
     parser.add_argument(
         "--ppo2-limit",
-        type=cli.ppo2_limit,
+        type=validators.ppo2_limit,
         default=PPO2_WORKING_LIMIT,
         metavar="BAR",
         help=(
@@ -100,7 +101,7 @@ def build_parser():
     )
     parser.add_argument(
         "--altitude",
-        type=cli.elevation,
+        type=validators.elevation,
         default=None,
         metavar="M",
         help=(
@@ -116,7 +117,7 @@ def build_parser():
     parser.add_argument(
         "--state-file",
         type=Path,
-        default=DEFAULT_STATE_PATH,
+        default=default_state_path(),
         help="tissue state carried between dives",
     )
     parser.add_argument(

@@ -5,22 +5,27 @@ not the M-values: M-values are `P_ambient / b + a`, derived from fixed ZHL-16C
 coefficients, and are identical on every dive. The pressures are what a
 repetitive dive has to account for.
 
-Reading a state file and ageing it are deliberately separate. The profile
-analyser wants both at once; the altitude analyser wants the file as saved and
-ages it against its own surface interval. Conflating the two forces every
-caller into the dive-analysis assumptions.
+Reading a state file and ageing it are deliberately separate. Dive analysis
+wants both at once; altitude analysis wants the file as saved and ages it
+against its own surface interval. Conflating the two forces every caller into
+the dive-analysis assumptions.
+
+Every entry point takes an explicit path. There is no default location: where
+a caller keeps its state is the caller's decision, and a library that picked
+one would be writing next to its own installed source.
 
 """
 
 import json
 import math
+import os
 from dataclasses import dataclass
 from datetime import UTC, datetime
 from pathlib import Path
 
-from configs.environment import SURFACE_PRESSURE
-from configs.limits import N2_FRACTION_AIR
-from model.splinter_decompression import load_gas
+from master_splinter.configs.environment import SURFACE_PRESSURE
+from master_splinter.configs.limits import N2_FRACTION_AIR
+from master_splinter.model.splinter_decompression import load_gas
 
 # Bumped to 2 when SURFACE_PRESSURE moved from a rounded 1.0 bar to the ISA
 # sea level reference. A version 1 file records a sea level dive as 1.0 bar,
@@ -28,10 +33,6 @@ from model.splinter_decompression import load_gas
 # not merely stale, it silently describes a different dive site. Rejecting it
 # degrades to "start fresh", which is the safe reading.
 SCHEMA_VERSION = 2
-
-DEFAULT_STATE_PATH = (
-    Path(__file__).resolve().parents[2] / ".splinter_state.json"
-)
 
 
 @dataclass(frozen=True)
@@ -99,14 +100,14 @@ def _number(value, default):
     return number
 
 
-def save_tissues(state, path=DEFAULT_STATE_PATH, *, now=None):
+def save_tissues(state, path, *, now=None):
     """Writes tissue pressures and a timestamp for the next dive to pick up.
 
     Parameters:
     -----------
     state: DiveState
         State whose tissues are recorded.
-    path: str or Path, optional
+    path: str or Path
         Destination file.
     now: datetime or None, optional
         Timestamp to record. Defaults to the current UTC time.
@@ -116,6 +117,14 @@ def save_tissues(state, path=DEFAULT_STATE_PATH, *, now=None):
     The gradient factor anchor is deliberately not saved. A new dive starts
     with a fresh gradient factor line; carrying the previous dive's anchor
     would wrongly loosen its first stop.
+
+    The write is atomic: a temporary file in the same directory, flushed and
+    fsynced, then os.replace over the destination. Writing in place would
+    truncate first, so losing power mid-write - which a battery-powered dive
+    computer does - leaves a half-written file. read_state cannot parse that,
+    returns None, and a caller following the documented "degrade to start
+    fresh" contract would then model a loaded diver as clean. A reader here
+    sees either the previous state or the new one, never a torn one.
 
     """
     path = Path(path)
@@ -127,7 +136,18 @@ def save_tissues(state, path=DEFAULT_STATE_PATH, *, now=None):
         "gas_fraction": state.gas_fraction,
         "tissues": list(state.tissues),
     }
-    path.write_text(json.dumps(payload, indent=2) + "\n", encoding="utf-8")
+    # Same directory, so the replace below is a rename within one filesystem.
+    path.parent.mkdir(parents=True, exist_ok=True)
+    temporary = path.with_name(f".{path.name}.tmp")
+    try:
+        with temporary.open("w", encoding="utf-8") as handle:
+            handle.write(json.dumps(payload, indent=2) + "\n")
+            handle.flush()
+            os.fsync(handle.fileno())
+        os.replace(temporary, path)
+    except BaseException:
+        temporary.unlink(missing_ok=True)
+        raise
 
 
 def _read_payload(path):
@@ -186,12 +206,12 @@ def _read_payload(path):
     )
 
 
-def read_state(path=DEFAULT_STATE_PATH):
+def read_state(path):
     """Reads a state file exactly as saved, without ageing it.
 
     Parameters:
     -----------
-    path: str or Path, optional
+    path: str or Path
         File to read.
 
     Returns:
@@ -210,12 +230,12 @@ def read_state(path=DEFAULT_STATE_PATH):
     return _read_payload(path)[0]
 
 
-def state_problem(path=DEFAULT_STATE_PATH):
+def state_problem(path):
     """Why a state file cannot be used, for reporting to the diver.
 
     Parameters:
     -----------
-    path: str or Path, optional
+    path: str or Path
         File to check.
 
     Returns:
@@ -272,7 +292,7 @@ def age_tissues(tissues, minutes, surface_pressure=SURFACE_PRESSURE):
 
 
 def load_state(
-    path=DEFAULT_STATE_PATH,
+    path,
     *,
     now=None,
     surface_interval=None,
@@ -281,7 +301,7 @@ def load_state(
 
     Parameters:
     -----------
-    path: str or Path, optional
+    path: str or Path
         File to read.
     now: datetime or None, optional
         Current time, used to derive the surface interval. Defaults to the
@@ -323,7 +343,7 @@ def load_state(
     )
 
 
-def load_tissues(path=DEFAULT_STATE_PATH, *, now=None, surface_interval=None):
+def load_tissues(path, *, now=None, surface_interval=None):
     """Convenience wrapper over load_state for callers wanting only tissues.
 
     Returns:

@@ -8,7 +8,7 @@ aircraft can be analysed with the same equations as a diver surfacing.
 
 """
 
-from configs.environment import (
+from master_splinter.configs.environment import (
     ISA_EXPONENT,
     ISA_LAPSE_COEFFICIENT,
     ISA_MAX_ELEVATION,

@@ -5,15 +5,15 @@ import random
 
 import pytest
 
-from handlers.profile_analyser import (
+from cli.profile_analyser import (
     DEFAULT_BOUNDARIES,
     build_parser,
     main,
 )
-from model.dive_state import DiveState
-from processors.dive_analysis import Violation, analyse_profile
-from processors.dive_simulation import generate_dive_profile
-from utils.plotting import render_dive_report
+from master_splinter.model.dive_state import DiveState
+from master_splinter.processors.dive_analysis import Violation, analyse_profile
+from master_splinter.processors.dive_simulation import generate_dive_profile
+from cli.plotting import render_dive_report
 
 PROFILE = [
     (30, 2, (0, 0), "descend"),
@@ -55,7 +55,7 @@ def test_renders_to_a_file(report, tmp_path):
 
 
 def test_rendering_an_empty_report_is_refused():
-    from processors.dive_analysis import DiveReport
+    from master_splinter.processors.dive_analysis import DiveReport
 
     with pytest.raises(ValueError, match="no samples"):
         render_dive_report(DiveReport())

@@ -10,7 +10,7 @@ import csv
 import json
 from pathlib import Path
 
-from configs.limits import MAX_PROFILE_DEPTH
+from master_splinter.configs.limits import MAX_PROFILE_DEPTH
 
 
 class ProfileFormatError(ValueError):

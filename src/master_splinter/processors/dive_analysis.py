@@ -10,16 +10,16 @@ import math
 from dataclasses import dataclass, field
 from enum import Enum
 
-from configs.environment import SEAWATER_METERS_PER_BAR
-from configs.limits import (
+from master_splinter.configs.environment import SEAWATER_METERS_PER_BAR
+from master_splinter.configs.limits import (
     ASCENT_RATE_WINDOW,
     DECO_STEP,
     MAX_ASCENT_RATE,
     PPO2_CONTINGENCY_LIMIT,
     PPO2_WORKING_LIMIT,
 )
-from model.dive_state import DiveState
-from model.splinter_decompression import (
+from master_splinter.model.dive_state import DiveState
+from master_splinter.model.splinter_decompression import (
     ambient_pressure_at_depth,
     walk_ceiling_to_surface,
 )

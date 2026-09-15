@@ -2,9 +2,12 @@
 
 import math
 
-from configs.environment import SEAWATER_METERS_PER_BAR, SURFACE_PRESSURE
-from configs.limits import N2_FRACTION_AIR, STOP_INCREMENT
-from configs.zhl16 import (
+from master_splinter.configs.environment import (
+    SEAWATER_METERS_PER_BAR,
+    SURFACE_PRESSURE,
+)
+from master_splinter.configs.limits import N2_FRACTION_AIR, STOP_INCREMENT
+from master_splinter.configs.zhl16 import (
     WATER_VAPOR_PRESSURE,
     ZHL16_A_VALUES,
     ZHL16_B_VALUES,

@@ -4,7 +4,10 @@ import json
 
 import pytest
 
-from utils.profile_loader import ProfileFormatError, load_profile
+from master_splinter.utils.profile_loader import (
+    ProfileFormatError,
+    load_profile,
+)
 
 CSV = "time,depth\n0,0\n1,20\n2,30\n20,30\n22,0\n"
 SAMPLES = [
@@ -59,7 +62,7 @@ def test_json_samples_wrapper(tmp_path):
 
 def test_loaded_profile_is_analysable(tmp_path):
     """The loader's output must be interchangeable with the generator's."""
-    from processors.dive_analysis import analyse_profile
+    from master_splinter.processors.dive_analysis import analyse_profile
 
     profile = load_profile(write(tmp_path, "dive.csv", CSV))
     report = analyse_profile(profile)

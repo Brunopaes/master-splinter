@@ -2,27 +2,46 @@
 build-backend = 'setuptools.build_meta'
 
 requires = [
-  "setuptools>=44",
+  "setuptools>=77",
 ]
 
 [project]
 name = "master-splinter"
-requires-python = "==3.13.*"
+description = "Bühlmann ZHL-16C decompression model: tissue loading, ascent ceilings and altitude exposure"
+readme = "README.md"
+keywords = [
+  "buhlmann",
+  "decompression",
+  "diving",
+  "scuba",
+  "zhl16",
+]
+license = "MIT"
+license-files = [ "LICENSE" ]
+authors = [
+  { name = "Bruno Paes", email = "bpaes@bloomberg.net" },
+]
+requires-python = ">=3.11"
 classifiers = [
+  "Development Status :: 3 - Alpha",
+  "Intended Audience :: Science/Research",
   "Programming Language :: Python :: 3 :: Only",
+  "Programming Language :: Python :: 3.11",
+  "Programming Language :: Python :: 3.12",
   "Programming Language :: Python :: 3.13",
+  "Programming Language :: Python :: 3.14",
+  "Topic :: Scientific/Engineering :: Physics",
 ]
 
 dynamic = [
   "version",
 ]
-dependencies = [
-  "matplotlib>=3.8,<4",
-]
+dependencies = [  ]
 optional-dependencies.dev = [
   "black>=24.10,<25",
-  "ipython>=8.31,<9",
+  "ipython>=8.31",
   "isort>=6b2,<7",
+  "matplotlib>=3.8,<4", # tools/methodology_figures.py only
   "ruff==0.14.2",
   "tox-uv>=1.9.1,<2",
 ]
@@ -32,12 +51,31 @@ optional-dependencies.test = [
   "pytest-cov>=4.1",
 ]
 
+urls.Documentation = "https://github.com/Brunopaes/master-splinter#readme"
+urls.Homepage = "https://github.com/Brunopaes/master-splinter"
+urls.Issues = "https://github.com/Brunopaes/master-splinter/issues"
+urls.Source = "https://github.com/Brunopaes/master-splinter"
+
+[tool.setuptools.dynamic]
+version = { attr = "master_splinter.__version__" }
+
+[tool.setuptools.packages.find]
+where = [ "src" ]
+
+# The only non-.py file in the distribution. cli/ and tools/ both read it
+# through master_splinter.theme.style_path(), so it ships once rather than
+# being vendored into each of them.
+[tool.setuptools.package-data]
+"master_splinter.theme" = [ "*.mplstyle" ]
+
 [tool.ruff]
-target-version = "py313"
+target-version = "py311"
 line-length = 79
 src = [
+  "cli",
   "src",
   "tests",
+  "tools",
 ]
 exclude = [
   "__pycache__",
@@ -49,7 +87,9 @@ markers = [
   "only_in_docker: only run these tests inside docker",
 ]
 addopts = "-m 'not only_in_docker' --strict-markers"
-pythonpath = [ "src" ]
+# cli/ is a repository-only package - not installed, so not importable
+# from the environment the way master_splinter is.
+pythonpath = [ "." ]
 
 [tool.coverage.report]
 show_missing = true
@@ -58,8 +98,8 @@ exclude_lines = [ "pragma: no cover" ]
 
 [tool.coverage.run]
 omit = [ "**/__init__.py" ]
-source = [ "src/" ]
+source = [ "master_splinter" ]
 
 [tool.mypy]
-python_version = 3.13
+python_version = "3.11"
 ignore_missing_imports = true

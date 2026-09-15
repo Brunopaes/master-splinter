@@ -2,12 +2,14 @@
 
 import pytest
 
-from model.atmosphere import elevation_at_pressure
-from model.dive_state import DiveState
-from model.splinter_decompression import initialize_tissues
-from processors.altitude_analysis import analyse_altitude_change
-from processors.dive_analysis import analyse_profile
-from processors.dive_simulation import generate_dive_profile
+from master_splinter.model.atmosphere import elevation_at_pressure
+from master_splinter.model.dive_state import DiveState
+from master_splinter.model.splinter_decompression import initialize_tissues
+from master_splinter.processors.altitude_analysis import (
+    analyse_altitude_change,
+)
+from master_splinter.processors.dive_analysis import analyse_profile
+from master_splinter.processors.dive_simulation import generate_dive_profile
 
 CABIN_ALTITUDE = 2400.0  # meters, typical pressurised cabin
 

@@ -2,8 +2,11 @@
 
 import pytest
 
-from configs.environment import ISA_MAX_ELEVATION
-from model.atmosphere import elevation_at_pressure, pressure_at_elevation
+from master_splinter.configs.environment import ISA_MAX_ELEVATION
+from master_splinter.model.atmosphere import (
+    elevation_at_pressure,
+    pressure_at_elevation,
+)
 
 # International Standard Atmosphere reference points, to 4 decimal places.
 # These are the published absolute pressures (101325, 89876, 70121 Pa at 0,

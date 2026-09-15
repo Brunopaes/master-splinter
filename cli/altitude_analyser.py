@@ -10,10 +10,13 @@ import argparse
 import sys
 from pathlib import Path
 
-from model.atmosphere import pressure_at_elevation
-from processors.altitude_analysis import analyse_altitude_change
-from utils import cli
-from utils.state_store import DEFAULT_STATE_PATH, read_state
+from master_splinter.model.atmosphere import pressure_at_elevation
+from master_splinter.processors.altitude_analysis import (
+    analyse_altitude_change,
+)
+from cli import validators
+from cli.paths import default_state_path
+from master_splinter.utils.state_store import read_state
 
 # Reference exposures, purely for orientation in the output.
 CABIN_ALTITUDE = 2400.0
@@ -29,7 +32,7 @@ def build_parser():
     )
     parser.add_argument(
         "--elevation-gain",
-        type=cli.elevation,
+        type=validators.elevation,
         required=True,
         metavar="M",
         help=(
@@ -39,7 +42,7 @@ def build_parser():
     )
     parser.add_argument(
         "--altitude",
-        type=cli.elevation,
+        type=validators.elevation,
         default=None,
         metavar="M",
         help=(
@@ -55,7 +58,7 @@ def build_parser():
     )
     parser.add_argument(
         "--gf",
-        type=cli.gradient_factors,
+        type=validators.gradient_factors,
         default="30/85",
         help="gradient factors as LOW/HIGH; only HIGH applies here "
         "(default: 30/85)",
@@ -63,7 +66,7 @@ def build_parser():
     parser.add_argument(
         "--state-file",
         type=Path,
-        default=DEFAULT_STATE_PATH,
+        default=default_state_path(),
         help="tissue state left by the last dive",
     )
     return parser
